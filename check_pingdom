@@ -1,0 +1,98 @@
+#!/usr/bin/php
+<?
+// {{{ Definitions of constants
+
+	//This is a URL of our web service server
+	define('SERVER_URL', 'https://ws.pingdom.com/soap/PingdomAPI.wsdl');
+
+	//You should assign here your e-mail address that you use to login on Pingdom Panel
+	define('USERNAME', 'user');
+
+	//You should assign here password that you use to login on Pingdom Panel
+	define('PASSWORD', 'passwordD');
+
+	//You should assign here your Pingdom API key, you can get it on Pingdom API page when you login on Pingdom Panel
+	define('PINGDOM_API_KEY', 'pingdom_api_key');
+
+	//Pingdom API status code when everything wen well
+	define('PINGDOM_API_STATUS_OK', 0);
+
+
+
+// }}}
+
+// {{{ Creation of soap client
+	$client = new SoapClient( SERVER_URL, array( 'trace' => 1, 'exceptions' => 0));
+// }}}
+
+
+// {{{ Log in to pingdom web server
+	$login_data->username = USERNAME;
+	$login_data->password = PASSWORD;
+
+	//Pingdom API function, see details on http://www.pingdom.com/services/api-documentation/
+	$login_response = $client->Auth_login(PINGDOM_API_KEY, $login_data);
+
+	//Check if everything is OK
+	if (PINGDOM_API_STATUS_OK != $login_response->status) {
+		exit('Unable to login');
+	}
+
+	//Without this value you wont be able to call any other Pingdom API function
+	$sessionId = $login_response->sessionId;
+// }}}
+
+// {{{ Get list of your checks
+	$get_list_response = $client->Check_getList(PINGDOM_API_KEY, $sessionId);
+
+	//Check if everything is OK
+	if (PINGDOM_API_STATUS_OK != $get_list_response->status) {
+		exit('Error occurred while trying to get list of checks');
+	}
+
+	$list_of_checks = $get_list_response->checkNames;
+// }}}
+
+// {{{ Get list of statuses for your checks
+	$current_states_response = $client->Report_getCurrentStates(PINGDOM_API_KEY, $sessionId);
+
+	//Check if everything is OK
+	if (PINGDOM_API_STATUS_OK != $current_states_response->status) {
+		exit('Error occurred while trying to get list of statuses for your checks');
+	}
+
+	$list_of_states = $current_states_response->currentStates;
+// }}}
+	$error=0;
+	foreach ($list_of_states as $check_state) {
+		if ( $check_state->checkState != "CHECK_UP") {
+			$error++;
+		}
+	}
+
+	if ( $error != 0 ) {
+		echo "CRITICAL: A pingdom check Has failed\n\n";
+
+	} else {
+		echo "OK: all checks are working\n\n";
+	}
+
+        foreach ($list_of_states as $check_state) {
+                        echo $check_state->checkState.",";
+                        echo $check_state->checkName. "\n";
+        }
+
+	if ( $error != 0 ) {
+		exit(2);
+	}
+
+// {{{ Safe way to end connection with Pingdom API server
+	$logout_response = $client->Auth_logout(PINGDOM_API_KEY, $sessionId);
+
+	//Check if everything is OK
+	if (PINGDOM_API_STATUS_OK != $logout_response->status) {
+		exit('Error occurred while closing connection');
+	}
+	print $error;
+// }}}
+?>
