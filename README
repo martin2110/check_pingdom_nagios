@@ -2,3 +2,4 @@ This is a quick nagios monitor I wrote.
 It uses the pingdom api to check pingdom status 
 On centos I had to install php-soap 
 You need to update the script with your pingdom username, password and api key to the script
+
